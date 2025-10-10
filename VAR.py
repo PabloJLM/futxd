@@ -4,15 +4,14 @@ from collections import deque
 import pygame
 import os
 import datetime
+import config_camara
 
 WIDTH, HEIGHT = 800, 400
 FPS = 25
 DURACION = 10
 FRAMES_UMBRAL = FPS * DURACION
 FRAMES_EXTRA = 3 * FPS
-VIDEO_PATH = "rtsp://PabloJ1012:PabloJ1012@192.168.1.109:554/stream2"
 
-# Inicializar pygame para reproducir sonido
 pygame.mixer.init()
 pygame.mixer.music.load("gol.mp3")
 
@@ -45,14 +44,30 @@ def detectar_pelota(frame_aplanado, kernel):
             return (int(x), int(y)), int(radio), clean
     return None, 0, clean
 
-def reconectar_rtsp():
-    print("Reintentando conexión RTSP...")
-    return cv2.VideoCapture(VIDEO_PATH)
+def obtener_video_source():
+    
+    tipo, valor = config_camara.cargar_config()
+    
+    if tipo == "ip":
+        return valor
+    elif tipo == "fisica":
+        return int(valor)
+    else:
+        print("ERROR: No hay configuración de cámara. Por favor, configura una cámara desde el menú principal.")
+        return None
+
+def reconectar_camara(video_source):
+    print("Reintentando conexión a la cámara...")
+    return cv2.VideoCapture(video_source)
 
 def main():
     os.makedirs("var", exist_ok=True)
 
-    cap = cv2.VideoCapture(VIDEO_PATH)
+    video_source = obtener_video_source()
+    if video_source is None:
+        return
+
+    cap = cv2.VideoCapture(video_source)
     if not cap.isOpened():
         print("No se pudo abrir la cámara.")
         return
@@ -89,6 +104,10 @@ def main():
     estela = deque(maxlen=20)
     frame_actual = 0
     errores_lectura = 0
+    
+    cv2.namedWindow("VAR", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("VAR", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("VAR", cv2.WND_PROP_TOPMOST, 1)  
 
     try:
         while True:
@@ -98,7 +117,7 @@ def main():
                 print(f"Error leyendo frame ({errores_lectura})")
                 if errores_lectura > 50:
                     cap.release()
-                    cap = reconectar_rtsp()
+                    cap = reconectar_camara(video_source)
                     errores_lectura = 0
                 continue
             errores_lectura = 0
@@ -117,7 +136,8 @@ def main():
                 detectado = False
 
             prediccion = kalman.predict()
-            pred_x, pred_y = int(prediccion[0]), int(prediccion[1])
+            pred_x, pred_y = int(prediccion[0, 0]), int(prediccion[1, 0])
+
             pelota_actual = (pred_x, pred_y)
 
             if detectado:
@@ -185,7 +205,6 @@ def main():
                     finally:
                         frames_post_B.clear()
 
-
             try:
                # cv2.putText(frame_aplanado, f"Goles A: {contador_A-1}", (10, 50),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                # cv2.putText(frame_aplanado, f"Goles B: {contador_B-1}", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
@@ -196,7 +215,7 @@ def main():
                 break
 
             frame_actual += 1
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord('q') or cv2.waitKey(1) & 0xFF == ord('Q'):
                 break
     finally:
         cap.release()

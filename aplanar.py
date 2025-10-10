@@ -2,6 +2,7 @@ import customtkinter
 import cv2
 from PIL import Image, ImageTk
 import numpy as np
+import utilidades_camara
 
 class VerCampo(customtkinter.CTkToplevel):
     def __init__(self, master=None):
@@ -40,9 +41,9 @@ class VerCampo(customtkinter.CTkToplevel):
         self.M = cv2.getPerspectiveTransform(pts_src, pts_dst)
         self.width, self.height = width, height
 
-        self.cap = cv2.VideoCapture("rtsp://PabloJ1012:PabloJ1012@192.168.1.109:554/stream2")
-        if not self.cap.isOpened():
-            print("Error al abrir RTSP")
+        # Usar la función helper para obtener la cámara
+        self.cap = utilidades_camara.obtener_captura()
+        if self.cap is None:
             self.destroy()
             return
 
@@ -64,6 +65,6 @@ class VerCampo(customtkinter.CTkToplevel):
         self.after(30, self.actualizar_frame)
 
     def cerrar(self):
-        if self.cap.isOpened():
+        if self.cap and self.cap.isOpened():
             self.cap.release()
         self.destroy()

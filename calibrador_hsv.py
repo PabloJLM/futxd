@@ -2,8 +2,7 @@ import cv2
 import numpy as np
 import customtkinter as ctk
 from PIL import Image, ImageTk
-
-camara_ip = "rtsp://PabloJ1012:PabloJ1012@192.168.1.109:554/stream2" #cambiar por la camara o ip que sea
+import utilidades_camara
 
 class Principal:
     def __init__(self, root):
@@ -51,9 +50,11 @@ class Principal:
         self.image_label = ctk.CTkLabel(root, text="")
         self.image_label.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
-        self.cap = cv2.VideoCapture(camara_ip)
-        if not self.cap.isOpened():
-            print("Error: No se pudo conectar a la cámara IP")
+        self.cap = utilidades_camara.obtener_captura()
+        if self.cap is None:
+            print("Error: No se pudo conectar a la cámara")
+            self.root.quit()
+            return
 
         self.root.bind("<Configure>", self.resize_window)
         self.update_frame()
@@ -117,7 +118,8 @@ class Principal:
 
     def run(self):
         self.root.mainloop()
-        self.cap.release()
+        if self.cap:
+            self.cap.release()
         cv2.destroyAllWindows()
 
 

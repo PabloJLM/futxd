@@ -2,6 +2,7 @@ import customtkinter
 import cv2
 import numpy as np
 from PIL import Image, ImageTk
+import utilidades_camara
 
 class VentanaPorterias(customtkinter.CTkToplevel):
     def __init__(self, master=None):
@@ -14,11 +15,21 @@ class VentanaPorterias(customtkinter.CTkToplevel):
         self.canvas.pack(padx=10, pady=10, fill="both", expand=True)
         self.canvas.bind("<Button-1>", self.on_click)
 
-        self.puntos = []  # Esperamos 4 puntos (2 líneas)
-        self.cap = cv2.VideoCapture("rtsp://PabloJ1012:PabloJ1012@192.168.1.109:554/stream2")
+        self.puntos = []  # Esperamos 4 puntos
+        
+        self.cap = utilidades_camara.obtener_captura()
+        if self.cap is None:
+            self.destroy()
+            return
 
         # Cargar homografía
-        self.pts_src = np.load("esquinas.npy")
+        try:
+            self.pts_src = np.load("esquinas.npy")
+        except Exception as e:
+            print(f"Error al cargar 'esquinas.npy': {e}")
+            self.destroy()
+            return
+            
         self.pts_dst = np.float32([
             [0, 0],
             [800 - 1, 0],
@@ -35,9 +46,8 @@ class VentanaPorterias(customtkinter.CTkToplevel):
             self.after(100, self.actualizar_frame)
             return
 
-        frame = cv2.warpPerspective(frame, self.M, (800, 400))  # Aplana el campo
+        frame = cv2.warpPerspective(frame, self.M, (800, 400))  
 
-        # Dibujar líneas si ya hay puntos
         if len(self.puntos) >= 2:
             cv2.line(frame, self.puntos[0], self.puntos[1], (0, 255, 0), 3)
             cv2.putText(frame, "Porteria A", self.puntos[0], cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
@@ -57,7 +67,6 @@ class VentanaPorterias(customtkinter.CTkToplevel):
         if len(self.puntos) >= 4:
             return
 
-        # Ajustar coordenadas del click al frame ya aplanado
         x = int(event.x * 800 / self.canvas.winfo_width())
         y = int(event.y * 400 / self.canvas.winfo_height())
         self.puntos.append((x, y))
@@ -73,6 +82,6 @@ class VentanaPorterias(customtkinter.CTkToplevel):
             self.after(500, self.cerrar)
 
     def cerrar(self):
-        if self.cap.isOpened():
+        if self.cap and self.cap.isOpened():
             self.cap.release()
         self.destroy()

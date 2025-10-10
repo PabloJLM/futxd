@@ -2,6 +2,7 @@ import customtkinter
 import cv2
 from PIL import Image, ImageTk
 import numpy as np
+import utilidades_camara
 
 puntos = []
 
@@ -26,7 +27,11 @@ class VentanaEsquinas(customtkinter.CTkToplevel):
         self.geometry(f"{ancho}x{alto}+{x}+{y}")
 
         self.puntos = []
-        self.cap = cv2.VideoCapture("rtsp://PabloJ1012:PabloJ1012@192.168.1.109:554/stream2")
+        
+        self.cap = utilidades_camara.obtener_captura()
+        if self.cap is None:
+            self.destroy()
+            return
 
         self.guia = cv2.imread("guia.png")
         if self.guia is not None:
@@ -54,11 +59,9 @@ class VentanaEsquinas(customtkinter.CTkToplevel):
             fg = cv2.bitwise_and(self.guia, self.guia, mask=mask)
             frame[cy:cy + h_guia, cx:cx + w_guia] = cv2.add(bg, fg)
 
-        # Dibujar puntos seleccionados
         for p in self.puntos:
             cv2.circle(frame, p, 6, (0, 255, 0), -1)
 
-        # Convertir y redimensionar manteniendo proporciones
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         img = Image.fromarray(frame_rgb)
 
@@ -71,7 +74,6 @@ class VentanaEsquinas(customtkinter.CTkToplevel):
         new_h = int(img_h * scale)
         img = img.resize((new_w, new_h), Image.LANCZOS)
 
-        # Crear fondo negro con márgenes y pegar la imagen centrada
         fondo = Image.new("RGB", (canvas_w, canvas_h), (0, 0, 0))
         offset_x = (canvas_w - new_w) // 2
         offset_y = (canvas_h - new_h) // 2
@@ -81,7 +83,6 @@ class VentanaEsquinas(customtkinter.CTkToplevel):
         self.canvas.create_image(0, 0, anchor="nw", image=self.img_tk)
 
         self.after(30, self.actualizar_frame)
-
 
     def on_click(self, event):
         if len(self.puntos) >= 4:
@@ -100,7 +101,6 @@ class VentanaEsquinas(customtkinter.CTkToplevel):
         offset_x = (canvas_w - new_w) // 2
         offset_y = (canvas_h - new_h) // 2
 
-        # Solo registrar puntos si están dentro del área de imagen
         if offset_x <= event.x <= offset_x + new_w and offset_y <= event.y <= offset_y + new_h:
             x = int((event.x - offset_x) / scale)
             y = int((event.y - offset_y) / scale)
@@ -112,8 +112,7 @@ class VentanaEsquinas(customtkinter.CTkToplevel):
                 print("Esquinas guardadas en 'esquinas.npy'")
                 self.cerrar()
 
-
     def cerrar(self):
-        if self.cap.isOpened():
+        if self.cap and self.cap.isOpened():
             self.cap.release()
         self.destroy()
