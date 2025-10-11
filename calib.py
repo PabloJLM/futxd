@@ -40,6 +40,7 @@ class Principal:
             self.entries[name].insert(0, str(int(self.sliders[name].get())))
             self.entries[name].bind("<Return>", self.update_from_entry)
 
+        # Valores iniciales
         self.sliders["Hue Min"].set(0)
         self.sliders["Hue Max"].set(179)
         self.sliders["Sat Min"].set(0)
@@ -47,6 +48,7 @@ class Principal:
         self.sliders["Val Min"].set(0)
         self.sliders["Val Max"].set(255)
 
+        # Pantalla de video
         self.image_label = ctk.CTkLabel(root, text="")
         self.image_label.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 
@@ -74,7 +76,7 @@ class Principal:
         for name in self.entries:
             try:
                 val = int(self.entries[name].get())
-                min_val, max_val = 0, 179 if "Hue" in name else 255
+                min_val, max_val = (0, 179) if "Hue" in name else (0, 255)
                 val = max(min_val, min(val, max_val))
                 self.sliders[name].set(val)
             except ValueError:
@@ -86,14 +88,6 @@ class Principal:
             frame = cv2.resize(frame, (self.frame_width, self.frame_height))
 
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            low = np.array([0, 0, 190])
-            up = np.array([179, 255, 255])
-
-            mascara1 = cv2.inRange(hsv, low, up)
-            andmascara1 = cv2.bitwise_and(frame, frame, mask=mascara1)
-            gblurr = cv2.GaussianBlur(andmascara1, (9, 9), 0)
-            kernel = np.ones((5, 5), np.uint8)
-            limpieza = cv2.morphologyEx(gblurr, cv2.MORPH_OPEN, kernel)
 
             lower_bound = np.array([
                 int(self.sliders["Hue Min"].get()),
@@ -104,8 +98,8 @@ class Principal:
                 int(self.sliders["Sat Max"].get()),
                 int(self.sliders["Val Max"].get())])
 
-            mask = cv2.inRange(limpieza, lower_bound, upper_bound)
-            result = cv2.bitwise_and(limpieza, limpieza, mask=mask)
+            mask = cv2.inRange(hsv, lower_bound, upper_bound)
+            result = cv2.bitwise_and(frame, frame, mask=mask)
 
             img = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(img)
